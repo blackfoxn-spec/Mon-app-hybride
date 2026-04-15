@@ -2,51 +2,43 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 import os
-import time
 
-# --- CONFIGURATION STYLE AVANCÉE ---
+# --- CONFIGURATION STYLE ---
 st.set_page_config(page_title="Hybrid Coach Premium", page_icon="🦾", layout="centered")
 
-# CSS pour injecter du dynamisme et de la lisibilité
 st.markdown("""
     <style>
-    /* Fond général sombre mais plus profond */
-    .main { background-color: #05070a; color: #e0e0e0; }
+    /* Fond sombre propre */
+    .main { background-color: #0e1117; color: #ffffff; }
     
-    /* Boutons : Bleu électrique et texte blanc gras pour lisibilité max */
+    /* Carte Protocole - Texte Blanc Obligatoire */
+    .protocol-card {
+        background-color: #1c1f26;
+        padding: 15px;
+        border-radius: 12px;
+        border-left: 6px solid #ff4b4b;
+        margin-bottom: 20px;
+        color: white !important;
+    }
+    
+    /* Bouton de validation massif et bleu */
     .stButton>button { 
         width: 100%; 
         border-radius: 12px; 
-        height: 3.5em; 
-        background-color: #0070f3; 
+        height: 4em; 
+        background-color: #007bff !important; 
         color: white !important; 
-        font-weight: bold;
+        font-size: 18px !important;
+        font-weight: bold !important;
         border: none;
-        box-shadow: 0 4px 14px 0 rgba(0,118,255,0.39);
     }
-    
-    /* Cartes pour les exercices */
-    .exercise-card {
-        background-color: #111418;
-        padding: 20px;
-        border-radius: 15px;
-        border-left: 5px solid #0070f3;
-        margin-bottom: 20px;
-    }
-    
-    /* Onglets plus visibles */
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #1c1f26;
-        border-radius: 8px 8px 0 0;
-        padding: 10px 20px;
-        color: #a0a0a0;
-    }
-    .stTabs [aria-selected="true"] { background-color: #0070f3 !important; color: white !important; }
+
+    /* Input fields plus contrastés */
+    input { background-color: #262730 !important; color: white !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- DONNÉES DU PROGRAMME ---
+# --- STRUCTURE PROGRAMME ---
 PROGRAMME = {
     "1. Samedi: Poitrine/Triceps (Salle)": {
         "main": ["Incline Machine Press (90°)", "Cable Crossover bas->haut", "Flat DB Press (Partiel)", "Dips lestés (90°)", "Rope Pushdown", "Overhead DB Extension", "Diamond Push-ups"],
@@ -86,37 +78,43 @@ tabs = st.tabs(["🏋️ Séance", "📏 Physique", "🥗 Nutrition", "📊 Evol
 with tabs[0]:
     jour = st.selectbox("Session", list(PROGRAMME.keys()))
     
-    st.markdown(f"<div class='exercise-card'><b>Protocole Épaule Obligatoire</b><br>Dernière gêne notée : 🚨</div>", unsafe_allow_html=True)
+    # Correction visuelle ici
+    st.markdown(f"""
+    <div class='protocol-card'>
+        <h3 style='color: white; margin-top:0;'>🚨 Protocole Épaule Obligatoire</h3>
+        [span_0](start_span)<p style='color: #ff4b4b; font-weight: bold;'>Ne pas zapper : Band Pull-Apart & Rotations[span_0](end_span)</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
     st.checkbox("Protocole terminé ✅")
 
     ex = st.selectbox("Exercice", PROGRAMME[jour]["main"])
     
-    # Historique
+    # Rappel Record
     logs = load_data("workout_logs.csv")
     if not logs.empty:
         prev = logs[logs['Exercice'] == ex].tail(1)
         if not prev.empty:
-            st.success(f"Dernière perf : {prev['Poids'].values[0]}kg x {prev['Reps'].values[0]} (RPE {prev['RPE'].values[0]})")
+            st.info(f"💪 Dernier record : {prev['Poids'].values[0]}kg x {prev['Reps'].values[0]}")
 
     with st.form("set_form"):
-        c1, c2, c3 = st.columns(3)
-        w = c1.number_input("Poids", step=0.5)
+        c1, c2 = st.columns(2)
+        w = c1.number_input("Poids (kg)", step=0.5)
         r = c2.number_input("Reps", step=1)
-        rpe = c3.selectbox("RPE", range(1,11), index=7)
-        note = st.text_input("Note (Douleur ?)")
+        rpe = st.select_slider("RPE (Intensité)", options=range(1,11), value=8)
+        note = st.text_input("Gêne épaule ? (0-10)")
         if st.form_submit_button("VALIDER LA SÉRIE"):
             save_entry(pd.DataFrame([[date.today(), ex, w, r, rpe, note]], columns=["Date", "Exercice", "Poids", "Reps", "RPE", "Note"]), "workout_logs.csv")
+            st.success("Série enregistrée !")
 
-# --- TAB 2: PHYSIQUE (COMPLET) ---
+# --- TAB 2: PHYSIQUE ---
 with tabs[1]:
-    st.header("Suivi Anthropométrique")
+    st.header("Check-in Anthropométrique")
     
-    # Upload Photo
-    st.subheader("📸 Photos de progression")
-    img = st.file_uploader("Prendre/Choisir une photo", type=['jpg', 'jpeg', 'png'])
-    if img: st.image(img, use_container_width=True)
+    img = st.file_uploader("📸 Ajouter une photo de progression", type=['jpg', 'jpeg', 'png'])
+    if img: st.image(img)
 
-    with st.form("body_full"):
+    with st.form("body_metrics"):
         c1, c2 = st.columns(2)
         poids = c1.number_input("Poids (kg)", value=116.0)
         taille = c2.number_input("Taille/Nombril (cm)")
@@ -127,14 +125,8 @@ with tabs[1]:
         hanches = c1.number_input("Hanches (cm)")
         cuisse = c2.number_input("Cuisse (cm)")
         
-        if st.form_submit_button("ENREGISTRER TOUTES LES MESURES"):
+        if st.form_submit_button("SAUVEGARDER TOUTES LES MESURES"):
             data_body = pd.DataFrame([[date.today(), poids, taille, cou, poitrine, epaules, bras, hanches, cuisse]], 
                                     columns=["Date", "Poids", "Taille", "Cou", "Poitrine", "Epaules", "Bras", "Hanches", "Cuisse"])
             save_entry(data_body, "metrics.csv")
             st.balloons()
-
-# --- TAB 3: NUTRITION ---
-with tabs[2]:
-    st.header("Plan 2500-2800 kcal")
-    for r in ["Repas 1 (Pré)", "Repas 2 (Post)", "Repas 3 (Midi)", "Repas 4 (Collation)", "Repas 5 (Dîner)", "Caséine Dodo"]:
-        st.checkbox(r)
