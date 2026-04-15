@@ -1,12 +1,13 @@
+
 import streamlit as st
 import pandas as pd
 from datetime import date
 import os
 
-# Configuration de l'App
+# Configuration de la page
 st.set_page_config(page_title="Hybrid Coach 40", page_icon="🦾")
 
-# --- CATALOGUE D'EXERCICES DU PROGRAMME ---
+# --- CATALOGUE DU PROGRAMME PERSO ---
 PROGRAMME = {
     "Lundi: Poitrine/Triceps": [
         "Incline Machine Press (Amplitude 90°)", "Cable Crossover bas -> haut", 
@@ -34,52 +35,58 @@ PROGRAMME = {
     ]
 }
 
-# --- FONCTIONS DATA ---
+# --- FONCTIONS DE SAUVEGARDE ---
 def save_entry(df, file):
     if os.path.exists(file):
         old = pd.read_csv(file)
         df = pd.concat([old, df], ignore_index=True)
     df.to_csv(file, index=False)
 
-# --- UI ---
+# --- INTERFACE ---
 st.title("🦾 My Hybrid Coach")
 
 menu = ["🏋️ Ma Séance", "📏 Check-in Physique", "🚨 Récup Épaule", "📊 Mes Stats"]
 choice = st.sidebar.radio("Navigation", menu)
 
 if choice == "🏋️ Ma Séance":
+    st.info("💡 Règle d'or : Chaque kilo perdu = +1 rep en callisthénie[cite: 4, 5].")
     jour_actuel = st.selectbox("Quelle session ?", list(PROGRAMME.keys()))
     
-    st.info("💡 Règle d'or : Chaque kilo perdu = +1 répétition.")
-    
-    with st.form("set_log"):
+    with st.form("set_log", clear_on_submit=True):
         exercice = st.selectbox("Exercice", PROGRAMME[jour_actuel])
         col1, col2 = st.columns(2)
         weight = col1.number_input("Charge (kg)", step=0.5)
         reps = col2.number_input("Reps", step=1)
-        
         note = st.text_input("Gêne épaule ? (0 à 10)")
         
         if st.form_submit_button("Enregistrer la série"):
             new_row = pd.DataFrame([[date.today(), jour_actuel, exercice, weight, reps, note]], 
                                    columns=["Date", "Seance", "Exercice", "Poids", "Reps", "Note"])
             save_entry(new_row, "workout_logs.csv")
-            st.success(f"Série de {exercice} validée !")
+            st.success(f"Série validée !")
 
 elif choice == "📏 Check-in Physique":
     st.header("Suivi Mensurations")
     with st.form("body"):
-        poids = st.number_input("Poids (kg)", value=116.0)
-        taille = st.number_input("Tour de taille (cm)")
+        poids = st.number_input("Poids (kg)", value=116.0, step=0.1)
+        taille = st.number_input("Tour de taille (cm)", step=0.5)
         if st.form_submit_button("Sauvegarder"):
             save_entry(pd.DataFrame([[date.today(), poids, taille]], columns=["Date", "Poids", "Taille"]), "metrics.csv")
-            st.success("Données de santé mises à jour.")
+            st.success(f"Données enregistrées. Objectif : 95 kg[cite: 3].")
 
 elif choice == "🚨 Récup Épaule":
-    st.header("Protocole Correctif")
-    [span_4](start_span)st.write("Cible : Conflit sous-acromial[span_4](end_span).")
-    exercises = ["Band Pull-Apart", "Face Pull élastique", "Rotation externe", "Wall Slide"]
-    for ex in exercises:
-        st.checkbox(ex)
-    st.write("---")
-    st.write("⚠️ *Si douleur nocturne ou irradiation, consulte un kiné.*")
+    st.header("Protocole Correctif Obligatoire")
+    st.warning("À faire AVANT chaque séance impliquant les épaules[cite: 10].")
+    st.write("- **Band Pull-Apart** (3 x 20) [cite: 14]")
+    st.write("- **Face Pull élastique** (3 x 15-20) [cite: 14]")
+    st.write("- **Rotation externe élastique** (3 x 15/côté) [cite: 14]")
+    st.write("- **Wall Slide** (2 x 12) [cite: 14]")
+    st.checkbox("Protocole terminé")
+
+elif choice == "📊 Mes Stats":
+    st.header("Évolution")
+    if os.path.exists("workout_logs.csv"):
+        data = pd.read_csv("workout_logs.csv")
+        st.line_chart(data.groupby("Date")["Poids"].max())
+    else:
+        st.write("Aucune donnée pour le moment.")
